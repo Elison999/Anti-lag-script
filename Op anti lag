@@ -3,8 +3,8 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "anti laging script - beta hub " .. Fluent.Version,
-    SubTitle = "by darker9899",
+    Title = "Fluent " .. Fluent.Version,
+    SubTitle = "by dawid",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
@@ -33,6 +33,11 @@ local removeParticlesEnabled = false
 local removeParticlesCoroutine
 local removeLightsEnabled = false
 local removeLightsCoroutine
+local removePropsEnabled = false
+local removePropsCoroutine
+local blockRemoteEventsEnabled = false
+local removeClothesEnabled = false
+local removeClothesCoroutine
 
 -- FPS Rate Slider
 local FPSSlider = Tabs.Main:AddSlider("FPSSlider", {
@@ -128,7 +133,7 @@ local AntiLagToggle = Tabs.Main:AddToggle("AntiLagToggle", {
                         settings().Rendering.QualityLevel = "Level01"
                     end)
                     
-                    wait(20) -- Update every 10 seconds
+                    wait(20) -- Update every 20 seconds
                 end
             end)
             coroutine.resume(antiLagCoroutine)
@@ -176,7 +181,7 @@ local AntiLagToggle = Tabs.Main:AddToggle("AntiLagToggle", {
 -- Remove Players Textures Toggle
 local RemoveTexturesToggle = Tabs.Main:AddToggle("RemoveTexturesToggle", {
     Title = "Remover Texturas dos Players",
-    Description = "Remove texturas de todos os players exceto você (atualiza a cada 2s)",
+    Description = "Remove texturas de todos os players exceto você (atualiza a cada 20s)",
     Default = false,
     Callback = function(Value)
         removeTexturesEnabled = Value
@@ -199,7 +204,7 @@ local RemoveTexturesToggle = Tabs.Main:AddToggle("RemoveTexturesToggle", {
                             end
                         end
                     end
-                    wait(20) -- Update every 2 seconds
+                    wait(20) -- Update every 20 seconds
                 end
             end)
             coroutine.resume(removeTexturesCoroutine)
@@ -222,7 +227,7 @@ local RemoveTexturesToggle = Tabs.Main:AddToggle("RemoveTexturesToggle", {
 -- Gray Sky Toggle
 local GraySkyToggle = Tabs.Main:AddToggle("GraySkyToggle", {
     Title = "Céu e Botões Cinza",
-    Description = "Deixa o céu e elementos cinza para melhor visibilidade (atualiza a cada 2s)",
+    Description = "Deixa o céu e elementos cinza para melhor visibilidade (atualiza a cada 20s)",
     Default = false,
     Callback = function(Value)
         graySkyEnabled = Value
@@ -250,7 +255,7 @@ local GraySkyToggle = Tabs.Main:AddToggle("GraySkyToggle", {
                         end
                     end
                     
-                    wait(20) -- Update every 2 seconds
+                    wait(20) -- Update every 20 seconds
                 end
             end)
             coroutine.resume(graySkyCoroutine)
@@ -279,7 +284,7 @@ local GraySkyToggle = Tabs.Main:AddToggle("GraySkyToggle", {
 -- Remove Particles Toggle
 local RemoveParticlesToggle = Tabs.Main:AddToggle("RemoveParticlesToggle", {
     Title = "Remover Partículas",
-    Description = "Remove todas as partículas do jogo (atualiza a cada 2s)",
+    Description = "Remove todas as partículas do jogo (atualiza a cada 20s)",
     Default = false,
     Callback = function(Value)
         removeParticlesEnabled = Value
@@ -307,7 +312,7 @@ local RemoveParticlesToggle = Tabs.Main:AddToggle("RemoveParticlesToggle", {
                         end
                     end
                     
-                    wait(20) -- Update every 2 seconds
+                    wait(20) -- Update every 20 seconds
                 end
             end)
             coroutine.resume(removeParticlesCoroutine)
@@ -351,7 +356,7 @@ local RemoveParticlesToggle = Tabs.Main:AddToggle("RemoveParticlesToggle", {
 -- Remove Lights Toggle
 local RemoveLightsToggle = Tabs.Main:AddToggle("RemoveLightsToggle", {
     Title = "Remover Luzes",
-    Description = "Remove todas as luzes do jogo (atualiza a cada 2s)",
+    Description = "Remove todas as luzes do jogo (atualiza a cada 20s)",
     Default = false,
     Callback = function(Value)
         removeLightsEnabled = Value
@@ -381,7 +386,7 @@ local RemoveLightsToggle = Tabs.Main:AddToggle("RemoveLightsToggle", {
                     Lighting.Brightness = 2
                     Lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
                     
-                    wait(20) -- Update every 2 seconds
+                    wait(20) -- Update every 20 seconds
                 end
             end)
             coroutine.resume(removeLightsCoroutine)
@@ -418,6 +423,192 @@ local RemoveLightsToggle = Tabs.Main:AddToggle("RemoveLightsToggle", {
             Fluent:Notify({
                 Title = "Luzes Restauradas",
                 Content = "Luzes foram reabilitadas",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Remove Props/Objects Toggle
+local RemovePropsToggle = Tabs.Main:AddToggle("RemovePropsToggle", {
+    Title = "Remover Props/Objetos",
+    Description = "Remove objetos e props do cenário (mantém apenas partes essenciais)",
+    Default = false,
+    Callback = function(Value)
+        removePropsEnabled = Value
+        if removePropsEnabled then
+            removePropsCoroutine = coroutine.create(function()
+                while removePropsEnabled do
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and obj.Parent ~= game.Players.LocalPlayer.Character then
+                            -- Keep essential parts like terrain, spawn points, etc.
+                            local keepPart = false
+                            
+                            -- Keep parts that are likely terrain or important structures
+                            if obj.Name == "Baseplate" or obj.Name == "SpawnLocation" or 
+                               obj.Name == "Terrain" or obj.Parent.Name == "Terrain" or
+                               obj:FindFirstAncestorOfClass("Model") and obj:FindFirstAncestorOfClass("Model").Name:find("Spawn") then
+                                keepPart = true
+                            end
+                            
+                            -- Remove decorative objects, tools, accessories, etc.
+                            if not keepPart and (obj.Parent:IsA("Tool") or obj.Parent:IsA("Hat") or 
+                               obj.Parent:IsA("Accessory") or obj.Name:find("Decoration") or 
+                               obj.Name:find("Prop") or obj.Size.X < 50 and obj.Size.Y < 50 and obj.Size.Z < 50) then
+                                obj.Transparency = 1
+                                obj.CanCollide = false
+                            end
+                        end
+                        
+                        -- Remove mesh parts and special meshes that are decorative
+                        if obj:IsA("MeshPart") or obj:IsA("SpecialMesh") then
+                            if not (obj:FindFirstAncestorOfClass("Model") and 
+                                   (obj:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid") or
+                                    obj:FindFirstAncestorOfClass("Model").Name:find("Spawn"))) then
+                                obj.Parent = nil
+                            end
+                        end
+                    end
+                    wait(2) -- Update every 2 seconds
+                end
+            end)
+            coroutine.resume(removePropsCoroutine)
+            
+            Fluent:Notify({
+                Title = "Props Removidos",
+                Content = "Objetos e props do cenário foram removidos",
+                Duration = 3
+            })
+        else
+            -- Note: Props removal is hard to reverse, so we just notify
+            Fluent:Notify({
+                Title = "Props Toggle Desativado",
+                Content = "Recarregue o jogo para restaurar props",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Block Remote Events Toggle
+local BlockRemoteEventsToggle = Tabs.Main:AddToggle("BlockRemoteEventsToggle", {
+    Title = "Bloquear Remote Events",
+    Description = "Bloqueia Remote Events de outros players (pode causar lag nos outros)",
+    Default = false,
+    Callback = function(Value)
+        blockRemoteEventsEnabled = Value
+        if blockRemoteEventsEnabled then
+            -- Hook and block remote events
+            local oldNamecall = getrawmetatable(game).__namecall
+            setreadonly(getrawmetatable(game), false)
+            
+            getrawmetatable(game).__namecall = function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+                
+                if method == "FireServer" or method == "InvokeServer" then
+                    -- Block if not from local player
+                    local caller = getcallingscript()
+                    if caller and caller.Parent ~= game.Players.LocalPlayer then
+                        return -- Block the remote event
+                    end
+                end
+                
+                return oldNamecall(self, ...)
+            end
+            
+            setreadonly(getrawmetatable(game), true)
+            
+            Fluent:Notify({
+                Title = "Remote Events Bloqueados",
+                Content = "Remote Events de outros players foram bloqueados",
+                Duration = 3
+            })
+        else
+            -- Note: Restoring the original namecall is complex
+            Fluent:Notify({
+                Title = "Remote Events Desbloqueados",
+                Content = "Recarregue o jogo para restaurar completamente",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Remove Player Clothes Toggle
+local RemoveClothesToggle = Tabs.Main:AddToggle("RemoveClothesToggle", {
+    Title = "Remover Roupas dos Players",
+    Description = "Remove roupas, acessórios e items 3D de todos os players (exceto você)",
+    Default = false,
+    Callback = function(Value)
+        removeClothesEnabled = Value
+        if removeClothesEnabled then
+            removeClothesCoroutine = coroutine.create(function()
+                while removeClothesEnabled do
+                    for _, player in pairs(game.Players:GetPlayers()) do
+                        if player ~= game.Players.LocalPlayer and player.Character then
+                            local character = player.Character
+                            
+                            -- Remove accessories (hats, hair, etc.)
+                            for _, accessory in pairs(character:GetChildren()) do
+                                if accessory:IsA("Accessory") or accessory:IsA("Hat") then
+                                    accessory:Destroy()
+                                end
+                            end
+                            
+                            -- Remove clothing
+                            local humanoid = character:FindFirstChild("Humanoid")
+                            if humanoid then
+                                for _, clothing in pairs(character:GetChildren()) do
+                                    if clothing:IsA("Shirt") or clothing:IsA("Pants") or clothing:IsA("ShirtGraphic") then
+                                        clothing:Destroy()
+                                    end
+                                end
+                            end
+                            
+                            -- Remove 3D clothing and body parts
+                            for _, part in pairs(character:GetDescendants()) do
+                                if part:IsA("MeshPart") and part.Parent == character then
+                                    -- Keep essential body parts but remove clothing meshes
+                                    if not (part.Name == "Head" or part.Name == "Torso" or 
+                                           part.Name == "Left Arm" or part.Name == "Right Arm" or
+                                           part.Name == "Left Leg" or part.Name == "Right Leg" or
+                                           part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+                                           part.Name == "LeftUpperArm" or part.Name == "RightUpperArm" or
+                                           part.Name == "LeftLowerArm" or part.Name == "RightLowerArm" or
+                                           part.Name == "LeftUpperLeg" or part.Name == "RightUpperLeg" or
+                                           part.Name == "LeftLowerLeg" or part.Name == "RightLowerLeg" or
+                                           part.Name == "LeftHand" or part.Name == "RightHand" or
+                                           part.Name == "LeftFoot" or part.Name == "RightFoot") then
+                                        part:Destroy()
+                                    end
+                                end
+                                
+                                -- Remove decals on body parts (clothing textures)
+                                if part:IsA("BasePart") then
+                                    for _, decal in pairs(part:GetChildren()) do
+                                        if decal:IsA("Decal") or decal:IsA("Texture") then
+                                            decal:Destroy()
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    wait(2) -- Update every 2 seconds
+                end
+            end)
+            coroutine.resume(removeClothesCoroutine)
+            
+            Fluent:Notify({
+                Title = "Roupas Removidas",
+                Content = "Roupas e acessórios dos players foram removidos",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Remoção de Roupas Desativada",
+                Content = "Novos players manterão suas roupas",
                 Duration = 3
             })
         end
