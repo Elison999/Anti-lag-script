@@ -1,0 +1,502 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "anti laging script - beta hub " .. Fluent.Version,
+    SubTitle = "by darker9899",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
+    Theme = "Amethyst",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
+})
+
+--Fluent provides Lucide Icons https://lucide.dev/icons/ for the tabs, icons are optional
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+-- Variables for FPS and Anti-Lag
+local fpsEnabled = false
+local fpsValue = 60
+local antiLagEnabled = false
+local antiLagCoroutine
+
+-- Variables for additional toggles
+local removeTexturesEnabled = false
+local removeTexturesCoroutine
+local graySkyEnabled = false
+local graySkyCoroutine
+local removeParticlesEnabled = false
+local removeParticlesCoroutine
+local removeLightsEnabled = false
+local removeLightsCoroutine
+
+-- FPS Rate Slider
+local FPSSlider = Tabs.Main:AddSlider("FPSSlider", {
+    Title = "Taxa de FPS",
+    Description = "Escolha a taxa de FPS desejada",
+    Default = 60,
+    Min = 60,
+    Max = 144,
+    Rounding = 0,
+    Callback = function(Value)
+        fpsValue = Value
+        if fpsEnabled then
+            setfpscap(fpsValue)
+        end
+    end
+})
+
+FPSSlider:SetValue(60)
+
+-- FPS Toggle
+local FPSToggle = Tabs.Main:AddToggle("FPSToggle", {
+    Title = "Ativar Taxa de FPS",
+    Description = "Ativa/Desativa a limitação de FPS",
+    Default = false,
+    Callback = function(Value)
+        fpsEnabled = Value
+        if fpsEnabled then
+            setfpscap(fpsValue)
+            Fluent:Notify({
+                Title = "FPS Ativado",
+                Content = "FPS definido para " .. fpsValue .. "hz",
+                Duration = 3
+            })
+        else
+            setfpscap(0) -- Remove FPS limit
+            Fluent:Notify({
+                Title = "FPS Desativado",
+                Content = "Limitação de FPS removida",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Anti-Lag Toggle
+local AntiLagToggle = Tabs.Main:AddToggle("AntiLagToggle", {
+    Title = "Anti-Lag",
+    Description = "Remove elementos visuais para melhorar performance (atualiza a cada 10s)",
+    Default = false,
+    Callback = function(Value)
+        antiLagEnabled = Value
+        if antiLagEnabled then
+            -- Start anti-lag coroutine
+            antiLagCoroutine = coroutine.create(function()
+                while antiLagEnabled do
+                    -- Remove textures and images
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("Decal") or obj:IsA("Texture") then
+                            obj.Transparency = 1
+                        elseif obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") or obj:IsA("ScreenGui") then
+                            if obj.Parent ~= game.Players.LocalPlayer.PlayerGui then
+                                obj.Enabled = false
+                            end
+                        elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+                            if obj:FindFirstAncestorOfClass("PlayerGui") ~= game.Players.LocalPlayer.PlayerGui then
+                                obj.Visible = false
+                            end
+                        end
+                    end
+                    
+                    -- Remove player UIs (except local player)
+                    for _, player in pairs(game.Players:GetPlayers()) do
+                        if player ~= game.Players.LocalPlayer and player.Character then
+                            for _, gui in pairs(player.Character:GetChildren()) do
+                                if gui:IsA("BillboardGui") or gui:IsA("SurfaceGui") then
+                                    gui.Enabled = false
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Remove text elements visible to other players
+                    for _, obj in pairs(game.Workspace:GetDescendants()) do
+                        if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                            if obj:FindFirstAncestorOfClass("PlayerGui") ~= game.Players.LocalPlayer.PlayerGui then
+                                obj.Visible = false
+                            end
+                        end
+                    end
+                    
+                    -- Reduce rendering quality
+                    game:GetService("RunService").RenderStepped:Connect(function()
+                        settings().Rendering.QualityLevel = "Level01"
+                    end)
+                    
+                    wait(20) -- Update every 10 seconds
+                end
+            end)
+            coroutine.resume(antiLagCoroutine)
+            
+            Fluent:Notify({
+                Title = "Anti-Lag Ativado",
+                Content = "Elementos visuais removidos para melhor performance",
+                Duration = 3
+            })
+        else
+            -- Restore elements when disabled
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = 0
+                elseif obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") or obj:IsA("ScreenGui") then
+                    obj.Enabled = true
+                elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") or obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                    obj.Visible = true
+                end
+            end
+            
+            -- Restore player UIs
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player.Character then
+                    for _, gui in pairs(player.Character:GetChildren()) do
+                        if gui:IsA("BillboardGui") or gui:IsA("SurfaceGui") then
+                            gui.Enabled = true
+                        end
+                    end
+                end
+            end
+            
+            -- Restore rendering quality
+            settings().Rendering.QualityLevel = "Automatic"
+            
+            Fluent:Notify({
+                Title = "Anti-Lag Desativado",
+                Content = "Elementos visuais restaurados",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Remove Players Textures Toggle
+local RemoveTexturesToggle = Tabs.Main:AddToggle("RemoveTexturesToggle", {
+    Title = "Remover Texturas dos Players",
+    Description = "Remove texturas de todos os players exceto você (atualiza a cada 2s)",
+    Default = false,
+    Callback = function(Value)
+        removeTexturesEnabled = Value
+        if removeTexturesEnabled then
+            removeTexturesCoroutine = coroutine.create(function()
+                while removeTexturesEnabled do
+                    for _, player in pairs(game.Players:GetPlayers()) do
+                        if player ~= game.Players.LocalPlayer and player.Character then
+                            for _, part in pairs(player.Character:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.Material = Enum.Material.Neon
+                                    part.Color = Color3.new(0.5, 0.5, 0.5) -- Gray color
+                                    -- Remove textures
+                                    for _, texture in pairs(part:GetChildren()) do
+                                        if texture:IsA("Decal") or texture:IsA("Texture") then
+                                            texture.Transparency = 1
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    wait(20) -- Update every 2 seconds
+                end
+            end)
+            coroutine.resume(removeTexturesCoroutine)
+            
+            Fluent:Notify({
+                Title = "Texturas Removidas",
+                Content = "Texturas dos players removidas (exceto você)",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Texturas Restauradas",
+                Content = "Texturas dos players restauradas",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Gray Sky Toggle
+local GraySkyToggle = Tabs.Main:AddToggle("GraySkyToggle", {
+    Title = "Céu e Botões Cinza",
+    Description = "Deixa o céu e elementos cinza para melhor visibilidade (atualiza a cada 2s)",
+    Default = false,
+    Callback = function(Value)
+        graySkyEnabled = Value
+        if graySkyEnabled then
+            graySkyCoroutine = coroutine.create(function()
+                while graySkyEnabled do
+                    -- Make sky gray
+                    local Lighting = game:GetService("Lighting")
+                    Lighting.SunAngularSize = 0
+                    Lighting.StarCount = 0
+                    Lighting.SunSize = 0
+                    Lighting.SkyboxBk = "http://www.roblox.com/asset/?id=0"
+                    Lighting.SkyboxDn = "http://www.roblox.com/asset/?id=0"
+                    Lighting.SkyboxFt = "http://www.roblox.com/asset/?id=0"
+                    Lighting.SkyboxLf = "http://www.roblox.com/asset/?id=0"
+                    Lighting.SkyboxRt = "http://www.roblox.com/asset/?id=0"
+                    Lighting.SkyboxUp = "http://www.roblox.com/asset/?id=0"
+                    
+                    -- Make terrain and parts gray
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and obj.Parent ~= game.Players.LocalPlayer.Character then
+                            obj.Color = Color3.new(0.5, 0.5, 0.5)
+                        elseif obj:IsA("Terrain") then
+                            obj.WaterColor = Color3.new(0.5, 0.5, 0.5)
+                        end
+                    end
+                    
+                    wait(20) -- Update every 2 seconds
+                end
+            end)
+            coroutine.resume(graySkyCoroutine)
+            
+            Fluent:Notify({
+                Title = "Céu Cinza Ativado",
+                Content = "Céu e elementos ficaram cinza",
+                Duration = 3
+            })
+        else
+            -- Restore original sky
+            local Lighting = game:GetService("Lighting")
+            Lighting.SunAngularSize = 21
+            Lighting.StarCount = 3000
+            Lighting.SunSize = 21
+            
+            Fluent:Notify({
+                Title = "Céu Restaurado",
+                Content = "Céu e cores restaurados",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Remove Particles Toggle
+local RemoveParticlesToggle = Tabs.Main:AddToggle("RemoveParticlesToggle", {
+    Title = "Remover Partículas",
+    Description = "Remove todas as partículas do jogo (atualiza a cada 2s)",
+    Default = false,
+    Callback = function(Value)
+        removeParticlesEnabled = Value
+        if removeParticlesEnabled then
+            removeParticlesCoroutine = coroutine.create(function()
+                while removeParticlesEnabled do
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                            obj.Enabled = false
+                        elseif obj:IsA("Beam") or obj:IsA("Trail") then
+                            obj.Enabled = false
+                        end
+                    end
+                    
+                    -- Also check in players
+                    for _, player in pairs(game.Players:GetPlayers()) do
+                        if player.Character then
+                            for _, obj in pairs(player.Character:GetDescendants()) do
+                                if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                                    obj.Enabled = false
+                                elseif obj:IsA("Beam") or obj:IsA("Trail") then
+                                    obj.Enabled = false
+                                end
+                            end
+                        end
+                    end
+                    
+                    wait(20) -- Update every 2 seconds
+                end
+            end)
+            coroutine.resume(removeParticlesCoroutine)
+            
+            Fluent:Notify({
+                Title = "Partículas Removidas",
+                Content = "Todas as partículas foram desabilitadas",
+                Duration = 3
+            })
+        else
+            -- Restore particles
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = true
+                elseif obj:IsA("Beam") or obj:IsA("Trail") then
+                    obj.Enabled = true
+                end
+            end
+            
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player.Character then
+                    for _, obj in pairs(player.Character:GetDescendants()) do
+                        if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                            obj.Enabled = true
+                        elseif obj:IsA("Beam") or obj:IsA("Trail") then
+                            obj.Enabled = true
+                        end
+                    end
+                end
+            end
+            
+            Fluent:Notify({
+                Title = "Partículas Restauradas",
+                Content = "Partículas foram reabilitadas",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Remove Lights Toggle
+local RemoveLightsToggle = Tabs.Main:AddToggle("RemoveLightsToggle", {
+    Title = "Remover Luzes",
+    Description = "Remove todas as luzes do jogo (atualiza a cada 2s)",
+    Default = false,
+    Callback = function(Value)
+        removeLightsEnabled = Value
+        if removeLightsEnabled then
+            removeLightsCoroutine = coroutine.create(function()
+                while removeLightsEnabled do
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                            obj.Enabled = false
+                        end
+                    end
+                    
+                    -- Also check in players
+                    for _, player in pairs(game.Players:GetPlayers()) do
+                        if player.Character then
+                            for _, obj in pairs(player.Character:GetDescendants()) do
+                                if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                                    obj.Enabled = false
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Adjust lighting settings
+                    local Lighting = game:GetService("Lighting")
+                    Lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
+                    Lighting.Brightness = 2
+                    Lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
+                    
+                    wait(20) -- Update every 2 seconds
+                end
+            end)
+            coroutine.resume(removeLightsCoroutine)
+            
+            Fluent:Notify({
+                Title = "Luzes Removidas",
+                Content = "Todas as luzes foram desabilitadas",
+                Duration = 3
+            })
+        else
+            -- Restore lights
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                    obj.Enabled = true
+                end
+            end
+            
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player.Character then
+                    for _, obj in pairs(player.Character:GetDescendants()) do
+                        if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                            obj.Enabled = true
+                        end
+                    end
+                end
+            end
+            
+            -- Restore lighting settings
+            local Lighting = game:GetService("Lighting")
+            Lighting.Ambient = Color3.new(0, 0, 0)
+            Lighting.Brightness = 1
+            Lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
+            
+            Fluent:Notify({
+                Title = "Luzes Restauradas",
+                Content = "Luzes foram reabilitadas",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- SaveManager and InterfaceManager setup
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+-- Ignore keys that are used by ThemeManager.
+-- (we dont want configs to save themes, do we?)
+SaveManager:IgnoreThemeSettings()
+
+-- You can add indexes of elements the save manager should ignore
+SaveManager:SetIgnoreIndexes({})
+
+-- use case for doing it this way:
+-- a script hub could have themes in a global folder
+-- and game configs in a separate folder per game
+InterfaceManager:SetFolder("FluentScriptHub")
+SaveManager:SetFolder("FluentScriptHub/specific-game")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+
+-- Loads our interface
+InterfaceManager:LoadInterface()
+
+-- Loads the default config
+SaveManager:LoadAutoloadConfig()
+
+-- Botão Flutuante Arrastável com Decal
+-- Coloque este script em StarterPlayerScripts ou ServerScriptService
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Criar ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FloatingButtonGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Criar o botão flutuante
+local floatingButton = Instance.new("ImageButton")
+floatingButton.Name = "FloatingButton"
+floatingButton.Size = UDim2.new(0, 80, 0, 80)
+floatingButton.Position = UDim2.new(1, -100, 0, 50)
+floatingButton.BackgroundTransparency = 1
+floatingButton.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+floatingButton.ScaleType = Enum.ScaleType.Fit
+floatingButton.ZIndex = 10
+floatingButton.Parent = screenGui
+
+-- Aplicar a decal usando a ID fornecida
+floatingButton.Image = "rbxassetid://12053823662"
+
+-- Criar bordas e efeitos visuais
+local frame = Instance.new("Frame")
+frame.Name = "ButtonFrame"
+frame.Size = UDim2.new(1, 6, 1, 6)
+frame.Position = UDim2.new(0, -3, 0, -3)
+frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+frame.BorderSizePixel = 0
+frame.ZIndex = 9
+frame.Parent = floatingButton
+
+-- Criar cantos arredondados
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCor
