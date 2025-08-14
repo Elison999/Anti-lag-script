@@ -499,4 +499,149 @@ corner.Parent = frame
 
 local buttonCorner = Instance.new("UICorner")
 buttonCorner.CornerRadius = UDim.new(0, 10)
-buttonCor
+buttonCorner.Parent = floatingButton
+
+-- Criar sombra
+local shadow = Instance.new("Frame")
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 10, 1, 10)
+shadow.Position = UDim2.new(0, -5, 0, 5)
+shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadow.BackgroundTransparency = 0.7
+shadow.BorderSizePixel = 0
+shadow.ZIndex = 8
+shadow.Parent = floatingButton
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 15)
+shadowCorner.Parent = shadow
+
+-- Variáveis para arrastar
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+-- Função para simular pressionar Left Control
+local function pressLeftControl()
+    -- Simula o pressionamento da tecla Left Control
+    -- Nota: No Roblox, não é possível simular teclas diretamente
+    -- Mas podemos executar uma função personalizada
+    print("Left Control pressionado!")
+    
+    -- Aqui você pode adicionar sua lógica personalizada
+    -- Por exemplo, ativar/desativar algo no jogo
+    
+    -- Efeito visual ao clicar
+    local clickTween = TweenService:Create(
+        floatingButton,
+        TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 0, true),
+        {Size = UDim2.new(0, 75, 0, 75)}
+    )
+    clickTween:Play()
+end
+
+-- Função para iniciar o arrastar
+local function onInputBegan(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = floatingButton.Position
+        
+        -- Efeito visual ao começar a arrastar
+        local dragTween = TweenService:Create(
+            floatingButton,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 85, 0, 85)}
+        )
+        dragTween:Play()
+        
+        frame.BackgroundColor3 = Color3.fromRGB(79, 172, 254)
+    end
+end
+
+-- Função para arrastar
+local function onInputChanged(input, gameProcessed)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        local newPosition = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+        
+        -- Limitar dentro da tela
+        local screenSize = playerGui.AbsoluteSize
+        local buttonSize = floatingButton.AbsoluteSize
+        
+        local minX = 0
+        local maxX = screenSize.X - buttonSize.X
+        local minY = 0
+        local maxY = screenSize.Y - buttonSize.Y
+        
+        local clampedX = math.clamp(startPos.X.Offset + delta.X, minX, maxX)
+        local clampedY = math.clamp(startPos.Y.Offset + delta.Y, minY, maxY)
+        
+        floatingButton.Position = UDim2.new(0, clampedX, 0, clampedY)
+    end
+end
+
+-- Função para finalizar o arrastar
+local function onInputEnded(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if dragging then
+            dragging = false
+            
+            -- Efeito visual ao parar de arrastar
+            local releaseTween = TweenService:Create(
+                floatingButton,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Size = UDim2.new(0, 80, 0, 80)}
+            )
+            releaseTween:Play()
+            
+            frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            
+            -- Verificar se foi um clique (movimento mínimo)
+            if dragStart and (input.Position - dragStart).Magnitude < 5 then
+                pressLeftControl()
+            end
+        end
+    end
+end
+
+-- Conectar eventos
+floatingButton.InputBegan:Connect(onInputBegan)
+UserInputService.InputChanged:Connect(onInputChanged)
+UserInputService.InputEnded:Connect(onInputEnded)
+
+-- Efeito hover
+floatingButton.MouseEnter:Connect(function()
+    if not dragging then
+        local hoverTween = TweenService:Create(
+            floatingButton,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 85, 0, 85)}
+        )
+        hoverTween:Play()
+        
+        frame.BackgroundColor3 = Color3.fromRGB(79, 172, 254)
+    end
+end)
+
+floatingButton.MouseLeave:Connect(function()
+    if not dragging then
+        local unhoverTween = TweenService:Create(
+            floatingButton,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 80, 0, 80)}
+        )
+        unhoverTween:Play()
+        
+        frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+print("Botão flutuante criado! Clique para simular Left Control, arraste para mover.")
