@@ -38,6 +38,8 @@ local removePropsCoroutine
 local blockRemoteEventsEnabled = false
 local removeClothesEnabled = false
 local removeClothesCoroutine
+local renderDistanceEnabled = false
+local renderDistanceValue = 500
 
 -- FPS Rate Slider
 local FPSSlider = Tabs.Main:AddSlider("FPSSlider", {
@@ -615,6 +617,134 @@ local RemoveClothesToggle = Tabs.Main:AddToggle("RemoveClothesToggle", {
     end
 })
 
+-- Render Distance Slider
+local RenderDistanceSlider = Tabs.Main:AddSlider("RenderDistanceSlider", {
+    Title = "Distância de Renderização",
+    Description = "Controla a distância de renderização (menor = mais FPS)",
+    Default = 500,
+    Min = 50,
+    Max = 2000,
+    Rounding = 0,
+    Callback = function(Value)
+        renderDistanceValue = Value
+        if renderDistanceEnabled then
+            -- Apply render distance immediately when slider changes
+            workspace.CurrentCamera.FieldOfView = math.clamp(70 - (renderDistanceValue / 50), 30, 120)
+            
+            -- Set streaming properties if available
+            if workspace:FindFirstChild("StreamingEnabled") then
+                workspace.StreamingMinRadius = math.max(renderDistanceValue * 0.1, 16)
+                workspace.StreamingTargetRadius = math.max(renderDistanceValue * 0.5, 64)
+            end
+            
+            -- Modify terrain streaming
+            local terrain = workspace:FindFirstChild("Terrain")
+            if terrain then
+                terrain.ReadVoxels = renderDistanceValue < 200
+            end
+        end
+    end
+})
+
+-- Render Distance Toggle
+local RenderDistanceToggle = Tabs.Main:AddToggle("RenderDistanceToggle", {
+    Title = "Controle de Renderização",
+    Description = "Ativa/Desativa o controle de distância de renderização",
+    Default = false,
+    Callback = function(Value)
+        renderDistanceEnabled = Value
+        if renderDistanceEnabled then
+            -- Apply render distance settings
+            workspace.CurrentCamera.FieldOfView = math.clamp(70 - (renderDistanceValue / 50), 30, 120)
+            
+            -- Configure streaming if available
+            if workspace:FindFirstChild("StreamingEnabled") then
+                workspace.StreamingEnabled = true
+                workspace.StreamingMinRadius = math.max(renderDistanceValue * 0.1, 16)
+                workspace.StreamingTargetRadius = math.max(renderDistanceValue * 0.5, 64)
+            end
+            
+            -- Configure terrain
+            local terrain = workspace:FindFirstChild("Terrain")
+            if terrain then
+                terrain.ReadVoxels = renderDistanceValue < 200
+            end
+            
+            -- Reduce render quality for distant objects
+            local runService = game:GetService("RunService")
+            local renderConnection
+            renderConnection = runService.Heartbeat:Connect(function()
+                if not renderDistanceEnabled then
+                    renderConnection:Disconnect()
+                    return
+                end
+                
+                local camera = workspace.CurrentCamera
+                local playerPosition = game.Players.LocalPlayer.Character and 
+                                     game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                
+                if playerPosition then
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and obj.Parent ~= game.Players.LocalPlayer.Character then
+                            local distance = (obj.Position - playerPosition.Position).Magnitude
+                            
+                            -- Hide objects beyond render distance
+                            if distance > renderDistanceValue then
+                                obj.Transparency = 1
+                                obj.CanCollide = false
+                            elseif distance > renderDistanceValue * 0.7 then
+                                -- Reduce quality for distant objects
+                                obj.Material = Enum.Material.Neon
+                                obj.Transparency = 0.3
+                            else
+                                -- Keep nearby objects normal (unless other toggles affect them)
+                                if obj.Transparency == 1 and distance <= renderDistanceValue * 0.7 then
+                                    obj.Transparency = 0
+                                    obj.CanCollide = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            Fluent:Notify({
+                Title = "Renderização Ativada",
+                Content = "Distância de renderização: " .. renderDistanceValue .. " unidades",
+                Duration = 3
+            })
+        else
+            -- Restore original camera and rendering settings
+            workspace.CurrentCamera.FieldOfView = 70
+            
+            -- Restore all objects visibility
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    obj.Transparency = 0
+                    obj.CanCollide = true
+                end
+            end
+            
+            -- Reset streaming if it was modified
+            if workspace:FindFirstChild("StreamingEnabled") then
+                workspace.StreamingMinRadius = 64
+                workspace.StreamingTargetRadius = 1024
+            end
+            
+            local terrain = workspace:FindFirstChild("Terrain")
+            if terrain then
+                terrain.ReadVoxels = true
+            end
+            
+            Fluent:Notify({
+                Title = "Renderização Desativada",
+                Content = "Configurações de renderização restauradas",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- SaveManager and InterfaceManager setup
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
@@ -641,4 +771,5 @@ Window:SelectTab(1)
 InterfaceManager:LoadInterface()
 
 -- Loads the default config
-SaveManager:LoadAutoloadConfig()
+SaveManager:LoadAutoloadConfig() 
+                     
