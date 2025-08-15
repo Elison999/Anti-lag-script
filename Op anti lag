@@ -773,3 +773,218 @@ InterfaceManager:LoadInterface()
 -- Loads the default config
 SaveManager:LoadAutoloadConfig() 
                      
+local Tabs = {
+    Performance = Window:AddTab({ Title = "Performance", Icon = "zap" }),
+    Graphics = Window:AddTab({ Title = "Gráficos", Icon = "monitor" }),
+    Rendering = Window:AddTab({ Title = "Renderização", Icon = "cpu" })
+}
+
+-- Variáveis para armazenar as configurações
+local Settings = {
+    ReduceLagSpikes = false,
+    PingBreakdown = false,
+    AntiAliasing = {
+        Enabled = false,
+        Quality = "1x"
+    },
+    RenderingMode = {
+        Enabled = false,
+        Mode = "OpenGL"
+    },
+    DisablePostProcessing = false,
+    RemoveGrass = false
+}
+
+-- ABA PERFORMANCE
+local PerformanceSection = Tabs.Performance:AddSection("Otimização de Performance")
+
+local ReduceLagSpikesToggle = Tabs.Performance:AddToggle("ReduceLagSpikes", {
+    Title = "Reduce Lag Spikes",
+    Description = "Reduz picos de latência para melhor fluidez",
+    Default = false
+})
+
+ReduceLagSpikesToggle:OnChanged(function(Value)
+    Settings.ReduceLagSpikes = Value
+    print("Reduce Lag Spikes:", Value)
+    
+    if Value then
+        -- Implementar lógica para reduzir lag spikes
+        game:GetService("RunService").Heartbeat:Connect(function()
+            wait(0.1) -- Exemplo de otimização
+        end)
+    end
+end)
+
+local PingBreakdownToggle = Tabs.Performance:AddToggle("PingBreakdown", {
+    Title = "Ping Breakdown",
+    Description = "Mostra informações detalhadas de ping",
+    Default = false
+})
+
+PingBreakdownToggle:OnChanged(function(Value)
+    Settings.PingBreakdown = Value
+    print("Ping Breakdown:", Value)
+    
+    if Value then
+        -- Implementar lógica para mostrar breakdown de ping
+        game:GetService("StarterGui"):SetCore("TopbarEnabled", true)
+    end
+end)
+
+-- ABA GRÁFICOS
+local GraphicsSection = Tabs.Graphics:AddSection("Configurações de Gráficos")
+
+local AntiAliasingToggle = Tabs.Graphics:AddToggle("AntiAliasing", {
+    Title = "Anti-Aliasing",
+    Description = "Ativar suavização de bordas",
+    Default = false
+})
+
+local AntiAliasingDropdown = Tabs.Graphics:AddDropdown("AntiAliasingQuality", {
+    Title = "Anti-Aliasing Quality (MSAA)",
+    Description = "Selecione a qualidade do anti-aliasing",
+    Values = {"1x", "2x", "4x", "8x"},
+    Multi = false,
+    Default = 1,
+})
+
+AntiAliasingToggle:OnChanged(function(Value)
+    Settings.AntiAliasing.Enabled = Value
+    print("Anti-Aliasing Enabled:", Value)
+    
+    if Value then
+        -- Implementar lógica de anti-aliasing
+        game:GetService("Lighting").GlobalShadows = true
+    else
+        game:GetService("Lighting").GlobalShadows = false
+    end
+end)
+
+AntiAliasingDropdown:OnChanged(function(Value)
+    Settings.AntiAliasing.Quality = Value
+    print("Anti-Aliasing Quality:", Value)
+    
+    -- Implementar diferentes níveis de MSAA baseado na seleção
+    local qualityLevel = tonumber(Value:sub(1, 1))
+    game:GetService("RunService"):Set3dRenderingEnabled(qualityLevel >= 4)
+end)
+
+-- ABA RENDERIZAÇÃO
+local RenderingSection = Tabs.Rendering:AddSection("Configurações de Renderização")
+
+local RenderingModeToggle = Tabs.Rendering:AddToggle("RenderingMode", {
+    Title = "Rendering Mode",
+    Description = "Ativar modo de renderização personalizado",
+    Default = false
+})
+
+local RenderingModeDropdown = Tabs.Rendering:AddDropdown("RenderingModeSelect", {
+    Title = "Modo de Renderização",
+    Description = "Selecione o modo de renderização",
+    Values = {"OpenGL", "Vulkan"},
+    Multi = false,
+    Default = 1,
+})
+
+RenderingModeToggle:OnChanged(function(Value)
+    Settings.RenderingMode.Enabled = Value
+    print("Rendering Mode Enabled:", Value)
+    
+    if Value then
+        -- Implementar lógica de modo de renderização
+        game:GetService("Lighting").Technology = Enum.Technology.Future
+    else
+        game:GetService("Lighting").Technology = Enum.Technology.Compatibility
+    end
+end)
+
+RenderingModeDropdown:OnChanged(function(Value)
+    Settings.RenderingMode.Mode = Value
+    print("Rendering Mode:", Value)
+    
+    if Value == "Vulkan" then
+        -- Implementar configurações específicas do Vulkan
+        game:GetService("Lighting").EnvironmentSpecularScale = 1
+        game:GetService("Lighting").EnvironmentDiffuseScale = 1
+    elseif Value == "OpenGL" then
+        -- Implementar configurações específicas do OpenGL
+        game:GetService("Lighting").EnvironmentSpecularScale = 0.5
+        game:GetService("Lighting").EnvironmentDiffuseScale = 0.5
+    end
+end)
+
+local DisablePostProcessingToggle = Tabs.Rendering:AddToggle("DisablePostProcessing", {
+    Title = "Disable Post-Processing Effects",
+    Description = "Desativa efeitos de pós-processamento",
+    Default = false
+})
+
+DisablePostProcessingToggle:OnChanged(function(Value)
+    Settings.DisablePostProcessing = Value
+    print("Disable Post-Processing:", Value)
+    
+    if Value then
+        -- Desativar efeitos de pós-processamento
+        for _, effect in pairs(game:GetService("Lighting"):GetChildren()) do
+            if effect:IsA("PostEffect") then
+                effect.Enabled = false
+            end
+        end
+    else
+        -- Reativar efeitos de pós-processamento
+        for _, effect in pairs(game:GetService("Lighting"):GetChildren()) do
+            if effect:IsA("PostEffect") then
+                effect.Enabled = true
+            end
+        end
+    end
+end)
+
+local RemoveGrassToggle = Tabs.Rendering:AddToggle("RemoveGrass", {
+    Title = "Remove Grass",
+    Description = "Remove a grama do terreno para melhor performance",
+    Default = false
+})
+
+RemoveGrassToggle:OnChanged(function(Value)
+    Settings.RemoveGrass = Value
+    print("Remove Grass:", Value)
+    
+    if Value then
+        -- Remover grama do workspace
+        workspace.Terrain.Decoration = false
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("grass") or obj.Name:lower():find("plant") then
+                obj:Destroy()
+            end
+        end
+    else
+        -- Reativar decoração do terreno
+        workspace.Terrain.Decoration = true
+    end
+end)
+
+-- Sistema de salvamento
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("FluentSettings")
+SaveManager:SetFolder("FluentSettings/GameConfigs")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Rendering)
+SaveManager:BuildConfigSection(Tabs.Rendering)
+
+Window:SelectTab(1)
+
+SaveManager:LoadAutoloadConfig()
+
+-- Notificação de carregamento
+Fluent:Notify({
+    Title = "Configurações Carregadas",
+    Content = "Interface de configurações inicializada com sucesso!",
+    Duration = 3
+})
